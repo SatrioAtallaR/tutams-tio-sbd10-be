@@ -29,7 +29,7 @@ const initDB = async () => {
     await pool.query(`
       CREATE TABLE IF NOT EXISTS users (
         id SERIAL PRIMARY KEY,
-        email VARCHAR(255) UNIQUE NOT NULL,
+        username VARCHAR(255) UNIQUE NOT NULL,
         password VARCHAR(255) NOT NULL,
         created_at TIMESTAMP DEFAULT NOW()
       );
@@ -75,10 +75,10 @@ app.get("/", (req, res) => {
 
 app.post("/register", async (req, res) => {
   try {
-    const { email, password } = req.body;
+    const { username, password } = req.body;
     
-    if (!email || !password) {
-      return res.status(400).json({ error: "Email and password required" });
+    if (!username || !password) {
+      return res.status(400).json({ error: "Username and password required" });
     }
     
     if (password.length < 6) {
@@ -88,8 +88,8 @@ app.post("/register", async (req, res) => {
     const hashedPassword = await bcryptjs.hash(password, 10);
     
     const result = await pool.query(
-      "INSERT INTO users (email, password) VALUES ($1, $2) RETURNING id, email",
-      [email.toLowerCase(), hashedPassword]
+      "INSERT INTO users (username, password) VALUES ($1, $2) RETURNING id, username",
+      [username.trim(), hashedPassword]
     );
     
     const token = jwt.sign({ userId: result.rows[0].id }, JWT_SECRET, { expiresIn: "7d" });
@@ -101,7 +101,7 @@ app.post("/register", async (req, res) => {
     });
   } catch (err) {
     if (err.code === "23505") {
-      return res.status(400).json({ error: "Email already exists" });
+      return res.status(400).json({ error: "Username already exists" });
     }
     res.status(500).json({ error: err.message });
   }
@@ -109,15 +109,15 @@ app.post("/register", async (req, res) => {
 
 app.post("/login", async (req, res) => {
   try {
-    const { email, password } = req.body;
+    const { username, password } = req.body;
     
-    if (!email || !password) {
-      return res.status(400).json({ error: "Email and password required" });
+    if (!username || !password) {
+      return res.status(400).json({ error: "Username and password required" });
     }
     
     const result = await pool.query(
-      "SELECT * FROM users WHERE email = $1",
-      [email.toLowerCase()]
+      "SELECT * FROM users WHERE username = $1",
+      [username.trim()]
     );
     
     if (result.rows.length === 0) {
@@ -135,7 +135,7 @@ app.post("/login", async (req, res) => {
     
     res.json({ 
       message: "Login successful",
-      user: { id: user.id, email: user.email },
+      user: { id: user.id, username: user.username },
       token 
     });
   } catch (err) {
